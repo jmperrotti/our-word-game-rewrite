@@ -2,12 +2,10 @@ import type { AlphabetState } from "../../shared/types";
 
 // Mirrors the alphabet board's colour language, but as coloured text rather
 // than filled tiles: guess words sit inline in the list and the composer, where
-// a row of solid tiles would outweigh everything around it. The non-colour cues
-// carry over unchanged — underline for present, strikethrough for absent — so
-// the marks stay readable without colour.
+// a row of solid tiles would outweigh everything around it.
 const LETTER_TONE: Record<AlphabetState, string> = {
-  present: "text-emerald-600 underline decoration-2 underline-offset-2",
-  absent: "text-rose-600 line-through decoration-2",
+  present: "text-emerald-600",
+  absent: "text-rose-600",
   unknown: "text-zinc-900",
 };
 
