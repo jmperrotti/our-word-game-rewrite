@@ -2,12 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { AlphabetBoard } from "./AlphabetBoard";
+import { GuessLetters } from "./GuessLetters";
 import { HowToPlay } from "./HowToPlay";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useGameSocket } from "../lib/useGameSocket";
 import { useOptimisticAlphabet } from "../lib/useOptimisticAlphabet";
 import { GUESS_SUBMIT_LOCK_MS } from "../../shared/gameLogic";
+import type { AlphabetState } from "../../shared/types";
 
 // Lazy-loaded so the ~130 KB word list doesn't enter the initial bundle.
 // First guess submission pays the import cost; subsequent ones hit the cache.
@@ -799,6 +801,7 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
                 guesses={myGuesses}
                 optimisticGuesses={optimisticGuesses}
                 emptyText="No guesses yet"
+                displayedAlphabet={displayedAlphabet}
                 scrollRef={myGuessesRef}
                 onScroll={() => {
                   keepMyGuessesPinnedRef.current = isNearBottom(myGuessesRef.current);
@@ -827,40 +830,54 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
                 className="shrink-0 space-y-2.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
               >
                 <div className="flex items-center gap-2">
-                  <input
-                    ref={guessInputRef}
-                    type="text"
-                    value={guessText}
-                    onChange={(e) =>
-                      setGuessText(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, guessMaxLength))
-                    }
-                    placeholder={guessType === "fourLetter" ? "4-letter guess" : "5-letter guess"}
-                    maxLength={guessMaxLength}
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    // "Go" makes the iOS keyboard's action key SUBMIT the form —
-                    // the same clean path as the submit button — instead of a
-                    // Done-style key that only dismisses the keyboard.
-                    enterKeyHint="go"
-                    // Explicit Enter handling: implicit form submission is
-                    // skipped by browsers when the default submit button is
-                    // disabled (e.g. length not yet valid), which made the
-                    // keyboard action key feel dead. Handle the key directly so
-                    // it always takes the same path as the button.
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void submitCurrentGuess();
+                  {/* A native input paints all of its text in one colour, so the
+                      real input is left transparent (caret and placeholder kept
+                      visible) and the letters are drawn by the overlay beneath
+                      it. The two elements must stay dimensionally identical —
+                      same border, padding and typography — or the painted
+                      letters drift away from the caret. */}
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      ref={guessInputRef}
+                      type="text"
+                      value={guessText}
+                      onChange={(e) =>
+                        setGuessText(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, guessMaxLength))
                       }
-                    }}
-                    // Deliberately NOT disabled while a guess is in flight:
-                    // disabling a focused element ejects keyboard focus, which
-                    // kicked desktop players out of the box on every submit.
-                    // The submit lock already prevents double-sends, and typing
-                    // the next guess during the round-trip is a feature.
-                    className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 font-mono text-[16px] tracking-widest lg:py-3 lg:text-xl text-zinc-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                    onBlur={handleGuessInputBlur}
-                  />
+                      placeholder={guessType === "fourLetter" ? "4-letter guess" : "5-letter guess"}
+                      maxLength={guessMaxLength}
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      // "Go" makes the iOS keyboard's action key SUBMIT the form —
+                      // the same clean path as the submit button — instead of a
+                      // Done-style key that only dismisses the keyboard.
+                      enterKeyHint="go"
+                      // Explicit Enter handling: implicit form submission is
+                      // skipped by browsers when the default submit button is
+                      // disabled (e.g. length not yet valid), which made the
+                      // keyboard action key feel dead. Handle the key directly so
+                      // it always takes the same path as the button.
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void submitCurrentGuess();
+                        }
+                      }}
+                      // Deliberately NOT disabled while a guess is in flight:
+                      // disabling a focused element ejects keyboard focus, which
+                      // kicked desktop players out of the box on every submit.
+                      // The submit lock already prevents double-sends, and typing
+                      // the next guess during the round-trip is a feature.
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 font-mono text-[16px] tracking-widest lg:py-3 lg:text-xl text-transparent caret-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      onBlur={handleGuessInputBlur}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 flex items-center whitespace-pre rounded-lg border border-transparent px-4 py-2.5 font-mono text-[16px] tracking-widest lg:py-3 lg:text-xl"
+                    >
+                      <GuessLetters word={guessText} alphabet={displayedAlphabet} />
+                    </span>
+                  </div>
                   <button
                     type="submit"
                     disabled={!guessText.trim() || isSubmitting || guessText.length !== guessMaxLength}
@@ -944,6 +961,8 @@ function GuessColumn(props: {
   }>;
   optimisticGuesses?: OptimisticGuessRow[];
   emptyText: string;
+  /** Drives the per-letter colouring of every word in the list. */
+  displayedAlphabet: Record<string, AlphabetState>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   onScroll: React.UIEventHandler<HTMLDivElement>;
 }) {
@@ -1002,7 +1021,8 @@ function GuessColumn(props: {
               className={`guess-row-enter flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-opacity lg:px-5 lg:py-3.5 lg:text-lg ${"pending" in guess && guess.pending === true ? "bg-zinc-100 opacity-60" : "bg-zinc-50"}`}
             >
               <span className="font-mono font-bold tracking-widest text-zinc-900">
-                {guess.text} {guess.type === "fullWord" && "🎯"}
+                <GuessLetters word={guess.text} alphabet={props.displayedAlphabet} />
+                {guess.type === "fullWord" && " 🎯"}
               </span>
               {"pending" in guess && guess.pending === true ? (
                 <span className="text-xs text-zinc-400">...</span>
