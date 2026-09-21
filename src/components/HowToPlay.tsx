@@ -43,10 +43,12 @@ function GuessComposerExample({
   word,
   selected,
   result,
+  showTypeToggle = true,
 }: {
   word: string;
   selected: "four" | "five";
   result?: string;
+  showTypeToggle?: boolean;
 }) {
   const selectedClass =
     "inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-900 bg-white px-3 py-2 text-center text-sm font-semibold text-zinc-900 shadow-sm";
@@ -69,10 +71,12 @@ function GuessComposerExample({
           ↑
         </span>
       </div>
-      <div className="grid grid-cols-2 rounded-lg bg-zinc-100 p-0.5">
-        <span className={selected === "four" ? selectedClass : idleClass}>four-letter word</span>
-        <span className={selected === "five" ? selectedClass : idleClass}>five-letter word</span>
-      </div>
+      {showTypeToggle ? (
+        <div className="grid grid-cols-2 rounded-lg bg-zinc-100 p-0.5">
+          <span className={selected === "four" ? selectedClass : idleClass}>four-letter word</span>
+          <span className={selected === "five" ? selectedClass : idleClass}>five-letter word</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -132,10 +136,10 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
           <div className="space-y-2">
             <p className="font-bold text-zinc-900">Guess four-letter words.</p>
             <p>
-              No repeating letters here either. Every guess tells you how many of its letters appear in your
+              No repeating letters here either! Every guess tells you how many of its letters appear in your
               opponent&rsquo;s word.
             </p>
-            <GuessComposerExample word="DUNK" selected="four" result="2" />
+            <GuessComposerExample word="DUNK" selected="four" result="2" showTypeToggle={false} />
             <p>
               2 letters in your guess <span className="font-bold text-zinc-900">DUNK</span> are in the opponent&rsquo;s
               word <span className="font-bold text-zinc-900">QUARK</span>.
@@ -155,7 +159,6 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
           </div>
 
           <div className="space-y-2 text-center">
-            <p className="text-base font-bold text-zinc-900">Congratulations, you win!</p>
             <p className="select-none text-2xl leading-none" aria-hidden="true">
               🎉🎊✨
             </p>
