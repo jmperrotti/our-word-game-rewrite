@@ -119,7 +119,7 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
   // Synchronous double-submit lock: pointerdown-submit plus a surviving
   // click/form-submit can both fire in the same tick, before the async
   // isSubmitting state has re-rendered.
-  const submitLockRef = useRef(false);
+  const lastGuessSentAtRef = useRef(0);
   const optimisticSeqRef = useRef(0);
   // FIFO of guesses waiting to be sent, drained one at a time by
   // drainGuessQueue so submission order is preserved and nothing is dropped.
@@ -375,11 +375,12 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
   };
 
   const submitCurrentGuess = async () => {
-    // NOTE: isSubmitting is deliberately NOT part of this guard. It reflects
-    // "a request is in flight", and gating input on it silently threw away
-    // every guess typed during a round trip. Pacing is the submit lock's job;
-    // delivery is the queue's.
-    if (!currentPlayer || !guessText.trim() || submitLockRef.current) return;
+    // Neither isSubmitting nor the pacing delay belongs in this guard. Both
+    // describe when a guess may be SENT, and gating acceptance on them threw
+    // the guess away with no row, no toast and no request: the player saw the
+    // word vanish. Acceptance is unconditional; the queue handles delivery and
+    // the pacing wait below handles rate.
+    if (!currentPlayer || !guessText.trim()) return;
 
     // Local validation runs before the pacing lock is taken. These rejections
     // never reach the server, so they must not spend the player's pacing
@@ -402,17 +403,6 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
       return;
     }
     void loadWordValidator(); // keep warming for the next guess
-
-    // Hold the lock for the whole pace the server enforces, imported rather
-    // than hardcoded. When this was a local 400ms it was shorter than the
-    // server's window, so a second guess inside the gap was accepted by the UI
-    // and then always rejected — which the player saw as the guess
-    // disappearing. GUESS_SUBMIT_LOCK_MS is looser than both server bounds by
-    // construction; see the invariant test in gameLogic.test.ts.
-    submitLockRef.current = true;
-    window.setTimeout(() => {
-      submitLockRef.current = false;
-    }, GUESS_SUBMIT_LOCK_MS);
 
     // Show the word in the list immediately; fill matchCount/isCorrect from the same
     // API response as the toast (no need to wait for WebSocket gameState).
@@ -474,6 +464,16 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
       while (guessQueueRef.current.length > 0) {
         const queued = guessQueueRef.current[0];
         try {
+          // Wait out the server's pacing window rather than rejecting a guess
+          // that arrives inside it. GUESS_SUBMIT_LOCK_MS is looser than both
+          // server bounds by construction; see gameLogic.test.ts.
+          const sinceLastSend = Date.now() - lastGuessSentAtRef.current;
+          if (sinceLastSend < GUESS_SUBMIT_LOCK_MS) {
+            await new Promise((resolve) => window.setTimeout(resolve, GUESS_SUBMIT_LOCK_MS - sinceLastSend));
+            if (cancelledRef.current) return;
+          }
+          lastGuessSentAtRef.current = Date.now();
+
           const result = await gameStateQuery.submitGuess({ type: queued.type, text: queued.word });
           if (cancelledRef.current) return;
           setOptimisticGuesses((rows) =>
