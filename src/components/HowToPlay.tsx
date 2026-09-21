@@ -69,7 +69,7 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
         </button>
       )}
 
-      <SocialOverlay open={isOpen} onClose={close} eyebrow="How to play" title="FourFive" size="md">
+      <SocialOverlay open={isOpen} onClose={close} title="FourFive" size="md">
         <div className="space-y-6 text-sm leading-6 text-zinc-700">
           <div className="space-y-1">
             <p className="text-base font-bold text-zinc-900">
@@ -84,7 +84,7 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Guess, and count the letters</p>
+            <p className="font-bold text-zinc-900">Guess four-letter words</p>
             <p>
               Every guess tells you how many of its letters appear in your opponent&rsquo;s word.
             </p>
