@@ -86,7 +86,8 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
           <div className="space-y-2">
             <p className="font-bold text-zinc-900">Guess four-letter words</p>
             <p>
-              Every guess tells you how many of its letters appear in your opponent&rsquo;s word.
+              No repeating letters here either. Every guess tells you how many of its letters appear in your
+              opponent&rsquo;s word.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Word word="DUNK" />
@@ -99,16 +100,16 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Track what you work out</p>
-            <p>
-              Tap a letter once to turn it green, for a letter you think is in their word. Tap it twice to turn it red,
-              for one you think is not.
-            </p>
+            <p className="font-bold text-zinc-900">Mark what you know</p>
+            <p>Tap a letter once for green: it is in their word.</p>
+            <p>Tap it twice for red: it is not.</p>
             <span className="inline-flex gap-1">
               <Tile tone="green">U</Tile>
               <Tile tone="red">D</Tile>
             </span>
+            <p className="pt-1">Keep marking until you know their 5-letter word, then guess it to win.</p>
           </div>
+
         </div>
       </SocialOverlay>
     </>
