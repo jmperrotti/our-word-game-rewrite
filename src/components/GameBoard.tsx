@@ -649,23 +649,27 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
               We'll pair you with the next player online. Share this code to invite someone directly:
             </div>
             <div className="mt-2 font-mono text-sm font-semibold tracking-widest text-zinc-500">{gameState.game.code}</div>
-            <button
-              type="button"
-              onClick={() => void handleShareInvite()}
-              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-              </svg>
-              Text invite link
-            </button>
-            <button
-              onClick={() => void handleExit()}
-              disabled={isLeavingWaitingLobby}
-              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 active:scale-[0.98]"
-            >
-              {isLeavingWaitingLobby ? "Cancelling..." : "Cancel waiting lobby"}
-            </button>
+            {/* A row, not two inline buttons: as inline boxes they line up on their
+                text baselines, and the differing type sizes left them uneven. */}
+            <div className="mt-4 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={() => void handleShareInvite()}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+                Text invite link
+              </button>
+              <button
+                onClick={() => void handleExit()}
+                disabled={isLeavingWaitingLobby}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 active:scale-[0.98]"
+              >
+                {isLeavingWaitingLobby ? "Cancelling..." : "Cancel waiting lobby"}
+              </button>
+            </div>
           </div>
         )}
 

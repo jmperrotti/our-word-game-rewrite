@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 import { HowToPlay } from "./HowToPlay";
@@ -18,6 +18,8 @@ interface GameLobbyProps {
   /** Opens a match and hands its link to the device share sheet. */
   onShareInvite?: () => Promise<void>;
 }
+
+const FIRST_RUN_RULES_KEY = "fourfive.seenHowToPlay";
 
 type WordStatus = "idle" | "checking" | "valid" | "invalid";
 
@@ -45,6 +47,7 @@ export function GameLobby({
   onShareInvite,
 }: GameLobbyProps) {
   const [isFinding, setIsFinding] = useState(false);
+  const [showFirstRunRules, setShowFirstRunRules] = useState(false);
   const [isJoiningInvite, setIsJoiningInvite] = useState(false);
   const [isSharingInvite, setIsSharingInvite] = useState(false);
   const [startingBot, setStartingBot] = useState<BotDifficulty | null>(null);
@@ -54,6 +57,19 @@ export function GameLobby({
   const [wordError, setWordError] = useState("");
 
   const hasUsername = Boolean(username.trim());
+
+  useEffect(() => {
+    if (inviteCode) return;
+
+    try {
+      if (localStorage.getItem(FIRST_RUN_RULES_KEY)) return;
+      localStorage.setItem(FIRST_RUN_RULES_KEY, "1");
+    } catch {
+      // Private mode and blocked storage both land here. Showing the rules to
+      // someone who has seen them beats hiding them from someone who has not.
+    }
+    setShowFirstRunRules(true);
+  }, [inviteCode]);
 
   const validateWord = async (word: string): Promise<boolean> => {
     if (word.length !== 5) {
@@ -196,7 +212,10 @@ export function GameLobby({
             </div>
           )}
           <div className="flex justify-end">
-            <HowToPlay />
+            <HowToPlay
+              forceOpen={showFirstRunRules}
+              onForceOpenConsumed={() => setShowFirstRunRules(false)}
+            />
           </div>
 
           {/* Secret word */}
