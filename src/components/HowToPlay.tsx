@@ -101,8 +101,8 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
 
           <div className="space-y-2">
             <p className="font-bold text-zinc-900">Keep track of the letters</p>
-            <p>Tap a letter once for green: it is in their word.</p>
-            <p>Tap it twice for red: it is not.</p>
+            <p>Tap a letter once for green if it is in their word.</p>
+            <p>Tap it twice for red if it is not.</p>
             <span className="inline-flex gap-1">
               <Tile tone="green">U</Tile>
               <Tile tone="red">D</Tile>
