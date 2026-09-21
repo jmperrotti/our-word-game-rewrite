@@ -425,7 +425,7 @@ function Content() {
                 <div className="h-64 animate-pulse rounded-xl border border-zinc-200 bg-white" />
               </div>
             ) : !isAuthenticated ? (
-              <div className="mx-auto max-w-xl">
+              <div className="mx-auto w-full max-w-md pt-8 sm:pt-14">
                 {pendingJoinCode && (
                   <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                     <p className="font-semibold">You&apos;ve been invited to a match!</p>
