@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import confetti from "canvas-confetti";
 import { SocialOverlay } from "./social/SocialOverlay";
 
 interface HowToPlayProps {
@@ -38,6 +39,44 @@ function Word({ word, tone = "neutral" }: { word: string; tone?: "neutral" | "gr
   );
 }
 
+function GuessComposerExample({
+  word,
+  selected,
+  result,
+}: {
+  word: string;
+  selected: "four" | "five";
+  result?: string;
+}) {
+  const selectedClass =
+    "inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-900 bg-white px-3 py-2 text-center text-sm font-semibold text-zinc-900 shadow-sm";
+  const idleClass =
+    "inline-flex min-h-11 items-center justify-center rounded-md border border-transparent px-3 py-2 text-center text-sm font-semibold text-zinc-700";
+
+  return (
+    <div className="space-y-2.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5">
+          <Word word={word} />
+          {result ? (
+            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">{result}</span>
+          ) : null}
+        </div>
+        <span
+          aria-hidden="true"
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-lg font-bold text-white"
+        >
+          ↑
+        </span>
+      </div>
+      <div className="grid grid-cols-2 rounded-lg bg-zinc-100 p-0.5">
+        <span className={selected === "four" ? selectedClass : idleClass}>four-letter word</span>
+        <span className={selected === "five" ? selectedClass : idleClass}>five-letter word</span>
+      </div>
+    </div>
+  );
+}
+
 export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: HowToPlayProps) {
   const [open, setOpen] = useState(false);
   const isOpen = open || Boolean(forceOpen);
@@ -46,6 +85,13 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
     setOpen(false);
     onForceOpenConsumed?.();
   };
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    void confetti({ particleCount: 100, spread: 70, origin: { y: 0.65 } });
+  }, [isOpen]);
 
   return (
     <>
@@ -79,20 +125,17 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Pick a secret word</p>
+            <p className="font-bold text-zinc-900">Pick a secret word.</p>
             <p>Both players choose a 5-letter word. No repeating letters.</p>
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Guess four-letter words</p>
+            <p className="font-bold text-zinc-900">Guess four-letter words.</p>
             <p>
               No repeating letters here either. Every guess tells you how many of its letters appear in your
               opponent&rsquo;s word.
             </p>
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Word word="DUNK" />
-              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">2</span>
-            </div>
+            <GuessComposerExample word="DUNK" selected="four" result="2" />
             <p>
               2 letters in your guess <span className="font-bold text-zinc-900">DUNK</span> are in the opponent&rsquo;s
               word <span className="font-bold text-zinc-900">QUARK</span>.
@@ -100,7 +143,7 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Keep track of the letters</p>
+            <p className="font-bold text-zinc-900">Keep track of the letters.</p>
             <p>Tap a letter once for green if it is in their word.</p>
             <p>Tap it twice for red if it is not.</p>
             <span className="inline-flex gap-1">
@@ -108,6 +151,15 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
               <Tile tone="red">D</Tile>
             </span>
             <p className="pt-1">Keep marking letters until you know their 5-letter word, then guess it correctly to win.</p>
+            <GuessComposerExample word="QUARK" selected="five" />
+          </div>
+
+          <div className="space-y-2 text-center">
+            <p className="text-base font-bold text-zinc-900">Congratulations, you win!</p>
+            <p className="select-none text-2xl leading-none" aria-hidden="true">
+              🎉🎊✨
+            </p>
+            <p className="font-bold text-zinc-900">Win, and claim bragging rights!</p>
           </div>
 
         </div>
