@@ -107,7 +107,7 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
               <Tile tone="green">U</Tile>
               <Tile tone="red">D</Tile>
             </span>
-            <p className="pt-1">Keep marking until you know their 5-letter word, then guess it to win.</p>
+            <p className="pt-1">Keep marking letters until you know their 5-letter word, then guess it correctly to win.</p>
           </div>
 
         </div>
