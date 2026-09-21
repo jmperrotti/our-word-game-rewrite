@@ -25,7 +25,6 @@ import {
 } from "./lib/playState";
 import { usePollingQuery } from "./lib/usePollingQuery";
 import {
-  buildInviteUrl,
   clearInviteCodeFromUrl,
   readInviteCodeFromUrl,
   shareInvite,
@@ -164,20 +163,30 @@ function Content() {
 
   async function handleCreateAndShareInvite(): Promise<void> {
     const trimmedUsername = username.trim();
-    const game = reusableWaitingGame
-      ? { gameId: reusableWaitingGame.gameId, code: reusableWaitingGame.code }
+    // Creating the match costs a round trip, and Safari only honours share()
+    // while the tap that triggered it is still active. Reusing an open lobby
+    // keeps the call inside that window; creating one spends it, so that case
+    // hands off to the waiting screen's own button rather than failing quietly.
+    const openLobby = reusableWaitingGame;
+    const game = openLobby
+      ? { gameId: openLobby.gameId, code: openLobby.code }
       : await api.createGame({ username: trimmedUsername, secretWord, public: false });
 
     // Enter the match before sharing. The share sheet only settles when the user
     // picks or cancels, so waiting on it strands the host outside a game that
-    // already exists. The waiting screen carries its own share button.
+    // already exists.
     setPlayState((prev) => ({ ...prev, currentGameId: game.gameId, gamePhase: "playing", lobbyCode: "" }));
+
+    if (!openLobby) {
+      toast("Your match is ready. Tap “Text invite link” to send it.", { duration: 6000 });
+      return;
+    }
 
     const outcome = await shareInvite({ code: game.code, hostName: trimmedUsername });
     if (outcome === "copied") {
       toast.success("Invite link copied. Paste it to a friend!");
     } else if (outcome === "unsupported") {
-      toast(`Share this link to invite a friend: ${buildInviteUrl(game.code)}`, { duration: 8000 });
+      toast("Couldn't open the share sheet. Tap “Text invite link” to try again.", { duration: 6000 });
     }
   }
 
@@ -417,6 +426,15 @@ function Content() {
               </div>
             ) : !isAuthenticated ? (
               <div className="mx-auto max-w-xl">
+                {pendingJoinCode && (
+                  <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    <p className="font-semibold">You&apos;ve been invited to a match!</p>
+                    <p className="mt-0.5 text-blue-700">
+                      Sign in or continue as a guest to join room{" "}
+                      <span className="font-mono font-bold tracking-widest">{pendingJoinCode}</span>.
+                    </p>
+                  </div>
+                )}
                 <SignInForm />
               </div>
             ) : gamePhase === "playing" && currentGameId ? (
