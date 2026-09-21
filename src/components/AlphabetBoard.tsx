@@ -37,11 +37,6 @@ export function AlphabetBoard({ displayedAlphabet, onToggleLetter, disabled = fa
 
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-      {/* Header — desktop only */}
-      <div className="hidden border-b border-zinc-100 px-4 py-3 lg:flex lg:items-center">
-        <h3 className="text-sm font-semibold text-zinc-900">Alphabet</h3>
-      </div>
-
       <div className="grid grid-cols-7 gap-1 p-2 lg:gap-2.5 lg:p-5">
         {ALPHABET.map((letter) => {
           const state = displayedAlphabet[letter] ?? "unknown";
