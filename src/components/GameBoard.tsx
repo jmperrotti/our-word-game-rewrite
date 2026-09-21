@@ -6,6 +6,7 @@ import { GuessLetters } from "./GuessLetters";
 import { HowToPlay } from "./HowToPlay";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { countGuessMatches, mergeGuessRows, selectPendingGuessRows } from "../lib/optimisticGuesses";
 import { useGameSocket } from "../lib/useGameSocket";
 import { useOptimisticAlphabet } from "../lib/useOptimisticAlphabet";
 import { GUESS_SUBMIT_LOCK_MS } from "../../shared/gameLogic";
@@ -33,6 +34,10 @@ type OptimisticGuessRow = {
   type: "fourLetter" | "fullWord";
   /** Until submitGuess returns — same moment as the toast gets its numbers */
   pending: boolean;
+  /** Rows already holding this word when the guess was made. */
+  priorCommittedCount: number;
+  /** The guess's own place in the history, once the server has answered. */
+  guessNumber?: number;
   matchCount?: number;
   isCorrect?: boolean;
 };
@@ -237,22 +242,8 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
       return;
     }
 
-    const committedCounts = new Map<string, number>();
-    for (const guess of myGuesses) {
-      const key = `${guess.type}:${guess.text}`;
-      committedCounts.set(key, (committedCounts.get(key) ?? 0) + 1);
-    }
-
     setOptimisticGuesses((current) => {
-      const remaining = current.filter((row) => {
-        const key = `${row.type}:${row.text}`;
-        const outstanding = committedCounts.get(key) ?? 0;
-        if (outstanding > 0) {
-          committedCounts.set(key, outstanding - 1);
-          return false;
-        }
-        return true;
-      });
+      const remaining = selectPendingGuessRows(myGuesses, current);
       return remaining.length === current.length ? current : remaining;
     });
   }, [myGuesses, optimisticGuesses.length]);
@@ -428,7 +419,14 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
     // millisecond, which made the two rows indistinguishable to the catch
     // path's removal-by-id.
     const optimisticId = `opt-${Date.now()}-${optimisticSeqRef.current++}`;
-    setOptimisticGuesses((rows) => [...rows, { id: optimisticId, text: word, type: guessType, pending: true }]);
+    // Counts the in-flight rows too, so two copies of one word each get their
+    // own watermark and retire independently.
+    const priorCommittedCount =
+      countGuessMatches(myGuesses, word, guessType) + countGuessMatches(optimisticGuesses, word, guessType);
+    setOptimisticGuesses((rows) => [
+      ...rows,
+      { id: optimisticId, text: word, type: guessType, pending: true, priorCommittedCount },
+    ]);
     setGuessText("");
     keepMyGuessesPinnedRef.current = true;
     if (window.innerWidth < 1024) {
@@ -480,7 +478,13 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
           setOptimisticGuesses((rows) =>
             rows.map((row) =>
               row.id === queued.optimisticId
-                ? { ...row, pending: false, matchCount: result.matchCount, isCorrect: result.isCorrect }
+                ? {
+                    ...row,
+                    pending: false,
+                    guessNumber: result.guessNumber,
+                    matchCount: result.matchCount,
+                    isCorrect: result.isCorrect,
+                  }
                 : row
             )
           );
@@ -956,6 +960,7 @@ function GuessColumn(props: {
     id: string;
     text: string;
     type: "fourLetter" | "fullWord";
+    guessNumber: number;
     matchCount: number;
     isCorrect: boolean;
   }>;
@@ -969,35 +974,17 @@ function GuessColumn(props: {
   // Skip optimistic rows whose committed server row has already landed. There
   // is a brief window where the server row arrives before the parent's
   // retiring effect runs; without this guard both render and the list flickers
-  // with a duplicate. Counted per text+type rather than tested for existence,
-  // so a word guessed twice keeps its second optimistic row until the second
-  // committed row arrives.
+  // with a duplicate.
   const optimistic = props.optimisticGuesses ?? [];
-  const committedCounts = new Map<string, number>();
-  for (const guess of props.guesses) {
-    const key = `${guess.type}:${guess.text}`;
-    committedCounts.set(key, (committedCounts.get(key) ?? 0) + 1);
-  }
-  const pendingRows = optimistic.filter((row) => {
-    const key = `${row.type}:${row.text}`;
-    const outstanding = committedCounts.get(key) ?? 0;
-    if (outstanding > 0) {
-      committedCounts.set(key, outstanding - 1);
-      return false;
-    }
-    return true;
-  });
-  const allGuesses =
-    pendingRows.length > 0
-      ? [
-          ...props.guesses,
-          ...pendingRows.map((row) => ({
-            ...row,
-            matchCount: row.matchCount ?? 0,
-            isCorrect: row.isCorrect ?? false,
-          })),
-        ]
-      : props.guesses;
+  const pendingRows = selectPendingGuessRows(props.guesses, optimistic);
+  const allGuesses = mergeGuessRows(
+    props.guesses,
+    pendingRows.map((row) => ({
+      ...row,
+      matchCount: row.matchCount ?? 0,
+      isCorrect: row.isCorrect ?? false,
+    }))
+  );
 
   return (
     <div className="flex min-h-[7.5rem] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white p-3 shadow-sm lg:min-h-0 lg:flex-none lg:p-5">
