@@ -69,52 +69,45 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
         </button>
       )}
 
-      <SocialOverlay open={isOpen} onClose={close} eyebrow="FourFive" title="How to play" size="md">
+      <SocialOverlay open={isOpen} onClose={close} eyebrow="How to play" title="FourFive" size="md">
         <div className="space-y-6 text-sm leading-6 text-zinc-700">
           <div className="space-y-1">
-            <p className="font-bold text-zinc-900">The Goal:</p>
-            <p>Guess your opponent&rsquo;s 5-letter word before they guess yours.</p>
+            <p className="text-base font-bold text-zinc-900">
+              Guess your opponent&rsquo;s 5-letter word before they guess yours.
+            </p>
+            <p>Use 4-letter words to guess your opponent&rsquo;s 5-letter word.</p>
           </div>
 
-          <div className="space-y-4">
-            <p className="font-bold text-zinc-900">How to Play:</p>
+          <div className="space-y-2">
+            <p className="font-bold text-zinc-900">Pick a secret word</p>
+            <p>Both players choose a 5-letter word. No repeating letters.</p>
+          </div>
 
+          <div className="space-y-2">
+            <p className="font-bold text-zinc-900">Guess, and count the letters</p>
             <p>
-              <span className="font-bold text-zinc-900">Pick a Secret Word:</span> Both players choose a 5-letter word
-              with no repeating letters.
+              Every guess tells you how many of its letters appear in your opponent&rsquo;s word.
             </p>
-
-            <div className="space-y-2">
-              <p>
-                <span className="font-bold text-zinc-900">Make a Guess:</span> Guess a 4-letter word with no repeating
-                letters.
-              </p>
-              <p>
-                The game will tell you how many letters from your guess are in your opponent&rsquo;s secret word. (For
-                example, if you guess &quot;PORK&quot; and the number is 2, it means 2 of those letters are in your
-                opponent&rsquo;s word).
-              </p>
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Word word="PORK" />
-                <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">2</span>
-              </div>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Word word="DUNK" />
+              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">2</span>
             </div>
-
-            <div className="space-y-2">
-              <p>
-                <span className="font-bold text-zinc-900">Track the letters:</span> Tap a letter once to turn it green
-                if it is in your opponent&rsquo;s word. Tap the letter twice to turn it red if it is not in their word.
-              </p>
-              <span className="inline-flex gap-1">
-                <Tile tone="green">P</Tile>
-                <Tile tone="red">K</Tile>
-              </span>
-            </div>
-
             <p>
-              <span className="font-bold text-zinc-900">Solve:</span> Use the numbers from each guess to deduce your
-              opponent&rsquo;s 5-letter word.
+              2 letters in your guess <span className="font-bold text-zinc-900">DUNK</span> are in the opponent&rsquo;s
+              word <span className="font-bold text-zinc-900">QUARK</span>.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-bold text-zinc-900">Track what you work out</p>
+            <p>
+              Tap a letter once to turn it green, for a letter you think is in their word. Tap it twice to turn it red,
+              for one you think is not.
+            </p>
+            <span className="inline-flex gap-1">
+              <Tile tone="green">U</Tile>
+              <Tile tone="red">D</Tile>
+            </span>
           </div>
         </div>
       </SocialOverlay>
