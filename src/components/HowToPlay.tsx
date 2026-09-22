@@ -1,5 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
-import confetti from "canvas-confetti";
+import { useState, type ReactNode } from "react";
 import { SocialOverlay } from "./social/SocialOverlay";
 
 interface HowToPlayProps {
@@ -101,13 +100,6 @@ export function HowToPlay({
     onForceOpenConsumed?.();
   };
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    void confetti({ particleCount: 100, spread: 70, origin: { y: 0.65 } });
-  }, [isOpen]);
-
   return (
     <>
       {hideTrigger ? null : variant === "full" ? (
@@ -134,7 +126,7 @@ export function HowToPlay({
         <div className="space-y-6 text-sm leading-6 text-zinc-700">
           <div className="space-y-1">
             <p className="text-base font-bold text-zinc-900">
-              Use 4-letter words to get your opponent&rsquo;s 5-letter word!
+              Use 4-letter words to guess your opponent&rsquo;s 5-letter word!
             </p>
           </div>
 
