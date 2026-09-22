@@ -134,9 +134,8 @@ export function HowToPlay({
         <div className="space-y-6 text-sm leading-6 text-zinc-700">
           <div className="space-y-1">
             <p className="text-base font-bold text-zinc-900">
-              Guess your opponent&rsquo;s 5-letter word before they guess yours.
+              Use 4-letter words to get your opponent&rsquo;s 5-letter word!
             </p>
-            <p>Use 4-letter words to guess your opponent&rsquo;s 5-letter word.</p>
           </div>
 
           <div className="space-y-2">
@@ -171,7 +170,10 @@ export function HowToPlay({
               <Tile tone="green">U</Tile>
               <Tile tone="red">D</Tile>
             </span>
-            <p className="pt-1">Keep marking letters until you know their 5-letter word, then guess it correctly to win.</p>
+            <p className="pt-1">Keep marking letters until you are ready to guess your opponent&rsquo;s 5-letter word.</p>
+            <p className="font-bold text-zinc-900">
+              Guess your opponent&rsquo;s 5-letter word before they guess yours!
+            </p>
             <GuessComposerExample word="QUARK" selected="five" />
           </div>
 
