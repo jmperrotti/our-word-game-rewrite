@@ -162,7 +162,9 @@ export function HowToPlay({
               <Tile tone="green">U</Tile>
               <Tile tone="red">D</Tile>
             </span>
-            <p className="pt-1">Keep marking letters until you are ready to guess your opponent&rsquo;s 5-letter word.</p>
+            <p className="pt-1">
+              Continue to guess four-letter words and mark letters until you know your opponent&rsquo;s five-letter word.
+            </p>
             <p className="font-bold text-zinc-900">
               Guess your opponent&rsquo;s 5-letter word before they guess yours!
             </p>
