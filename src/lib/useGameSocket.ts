@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { GameStateView } from "../../shared/types";
 import { api } from "./api";
+import { mergeGuessViewsMonotonic } from "./optimisticGuesses";
 
 // Safety poll interval. Supabase Realtime broadcasts are the primary update
 // path; this slow poll is a backstop for missed/dropped signals. It is
@@ -104,7 +105,18 @@ export function useGameSocket(gameId: string | null): GameSocketResult {
       } else {
         appliedStateSeq = ++latestRequestSeq;
       }
-      const next: GameSocketResponse = { gameState: state };
+
+      const previous = dataRef.current?.gameState;
+      const mergedState =
+        state && previous && previous.game.id === state.game.id
+          ? {
+              ...state,
+              myGuesses: mergeGuessViewsMonotonic(previous.myGuesses, state.myGuesses),
+              opponentGuesses: mergeGuessViewsMonotonic(previous.opponentGuesses, state.opponentGuesses),
+            }
+          : state;
+
+      const next: GameSocketResponse = { gameState: mergedState };
       dataRef.current = next;
       setData(next);
       setError(null);

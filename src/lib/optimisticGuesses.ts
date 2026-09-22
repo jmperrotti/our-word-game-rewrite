@@ -1,3 +1,5 @@
+import type { GuessView } from "../../shared/types";
+
 /** A guess drawn immediately, before the server has confirmed it. */
 export interface PendingGuessRow {
   text: string;
@@ -25,6 +27,32 @@ export function countGuessMatches(rows: readonly { text: string; type: string }[
   return rows.filter((row) => row.type === type && row.text === text).length;
 }
 
+function committedRowMatchesPending(committed: readonly CommittedGuessRow[], row: PendingGuessRow) {
+  if (row.guessNumber === undefined) {
+    return false;
+  }
+  return committed.some(
+    (guess) => guess.guessNumber === row.guessNumber && guess.text === row.text && guess.type === row.type
+  );
+}
+
+/**
+ * Never drop a guess the client has already seen for this game. A newer refetch
+ * can briefly return a shorter list — broadcast races, bot turns, tab wake —
+ * and replacing myGuesses wholesale erased rows whose optimistic fallback had
+ * already retired.
+ */
+export function mergeGuessViewsMonotonic(previous: readonly GuessView[], incoming: readonly GuessView[]): GuessView[] {
+  const byNumber = new Map<number, GuessView>();
+  for (const guess of previous) {
+    byNumber.set(guess.guessNumber, guess);
+  }
+  for (const guess of incoming) {
+    byNumber.set(guess.guessNumber, guess);
+  }
+  return [...byNumber.values()].sort((a, b) => a.guessNumber - b.guessNumber);
+}
+
 /**
  * Narrows in-flight guess rows to the ones still waiting on a server row.
  *
@@ -43,11 +71,9 @@ export function selectPendingGuessRows<C extends CommittedGuessRow, O extends Pe
   committed: readonly C[],
   pending: readonly O[]
 ): O[] {
-  const committedNumbers = new Set(committed.map((guess) => guess.guessNumber));
-
   return pending.filter((row) => {
     if (row.guessNumber !== undefined) {
-      return !committedNumbers.has(row.guessNumber);
+      return !committedRowMatchesPending(committed, row);
     }
     return countGuessMatches(committed, row.text, row.type) <= row.priorCommittedCount;
   });
