@@ -17,6 +17,9 @@ interface GameLobbyProps {
   onDismissInvite?: () => void;
   /** Opens a match and hands its link to the device share sheet. */
   onShareInvite?: () => Promise<void>;
+  /** Opens How to Play after the player just left the sign-in page. */
+  forceHowToPlay?: boolean;
+  onHowToPlayConsumed?: () => void;
 }
 
 const FIRST_RUN_RULES_KEY = "fourfive.seenHowToPlay";
@@ -45,6 +48,8 @@ export function GameLobby({
   onJoinByInviteCode,
   onDismissInvite,
   onShareInvite,
+  forceHowToPlay,
+  onHowToPlayConsumed,
 }: GameLobbyProps) {
   const [isFinding, setIsFinding] = useState(false);
   const [showFirstRunRules, setShowFirstRunRules] = useState(false);
@@ -213,8 +218,11 @@ export function GameLobby({
           )}
           <div className="flex justify-end">
             <HowToPlay
-              forceOpen={showFirstRunRules}
-              onForceOpenConsumed={() => setShowFirstRunRules(false)}
+              forceOpen={showFirstRunRules || Boolean(forceHowToPlay)}
+              onForceOpenConsumed={() => {
+                setShowFirstRunRules(false);
+                onHowToPlayConsumed?.();
+              }}
             />
           </div>
 

@@ -27,6 +27,8 @@ async function loadWordValidator() {
 interface GameBoardProps {
   gameId: string;
   onExitToMenu: () => void;
+  forceHowToPlay?: boolean;
+  onHowToPlayConsumed?: () => void;
 }
 
 type OptimisticGuessRow = {
@@ -43,7 +45,7 @@ type OptimisticGuessRow = {
   isCorrect?: boolean;
 };
 
-export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
+export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayConsumed }: GameBoardProps) {
   const { user } = useAuth();
   const gameStateQuery = useGameSocket(gameId);
   const gameState = gameStateQuery.data?.gameState;
@@ -762,7 +764,11 @@ export function GameBoard({ gameId, onExitToMenu }: GameBoardProps) {
                   <span className="text-zinc-500">/5</span> letters found
                 </p>
               </section>
-              <HowToPlay variant="icon" />
+              <HowToPlay
+                variant="icon"
+                forceOpen={forceHowToPlay}
+                onForceOpenConsumed={onHowToPlayConsumed}
+              />
             </div>
 
             {(() => {

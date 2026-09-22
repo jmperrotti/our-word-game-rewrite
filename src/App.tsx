@@ -1,5 +1,5 @@
 import { Toaster } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { FriendView } from "../shared/types";
 import { GameLobby } from "./components/GameLobby";
@@ -132,6 +132,22 @@ function Content() {
   const [openInbox, setOpenInbox] = useState(false);
   const [openGuestInvites, setOpenGuestInvites] = useState(false);
   const [pendingJoinCode, setPendingJoinCode] = useState<string>(() => readInviteCodeFromUrl());
+  const [showHowToPlayAfterAuth, setShowHowToPlayAfterAuth] = useState(false);
+  const previousAuthenticatedRef = useRef<boolean | null>(null);
+
+  // After the sign-in page, How to Play is the next thing the player sees.
+  // Wait until the first auth check finishes so a returning signed-in session
+  // does not look like they just left the sign-in page.
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (previousAuthenticatedRef.current === false && isAuthenticated) {
+      setShowHowToPlayAfterAuth(true);
+    }
+    previousAuthenticatedRef.current = isAuthenticated;
+  }, [loading, isAuthenticated]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !user?.id) {
@@ -445,6 +461,8 @@ function Content() {
                 // should also drop the lobby code and public flag from the game
                 // just left. Both now clear the secret word (see playState).
                 onExitToMenu={() => setPlayState((prev) => resetPlayState(prev))}
+                forceHowToPlay={showHowToPlayAfterAuth}
+                onHowToPlayConsumed={() => setShowHowToPlayAfterAuth(false)}
               />
             ) : (
               <div className="space-y-6">
@@ -493,6 +511,8 @@ function Content() {
                         setOpenInbox(true);
                       }
                     }}
+                    forceHowToPlay={showHowToPlayAfterAuth}
+                    onHowToPlayConsumed={() => setShowHowToPlayAfterAuth(false)}
                   />
                 )}
               </div>

@@ -18,9 +18,16 @@ function readPreferredAuthIdentifier() {
   return resolvePreferredAuthIdentifier(rememberedIdentifier);
 }
 
+function isInvalidCredentialsError(error: unknown) {
+  return error instanceof Error && /invalid username or password/i.test(error.message);
+}
+
+function isUsernameTakenError(error: unknown) {
+  return error instanceof Error && /already taken/i.test(error.message);
+}
+
 export function SignInForm() {
   const auth = useAuth();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [identifier, setIdentifier] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [anonymousSubmitting, setAnonymousSubmitting] = useState(false);
@@ -42,8 +49,22 @@ export function SignInForm() {
     const password = String(formData.get("password") ?? "");
 
     try {
-      const authenticatedUser =
-        flow === "signIn" ? await auth.signIn(identifier, password) : await auth.signUp(identifier, password);
+      let authenticatedUser: Awaited<ReturnType<typeof auth.signIn>>;
+      try {
+        authenticatedUser = await auth.signIn(identifier, password);
+      } catch (signInError) {
+        if (!isInvalidCredentialsError(signInError)) {
+          throw signInError;
+        }
+
+        try {
+          authenticatedUser = await auth.signUp(identifier, password);
+        } catch (signUpError) {
+          // Username exists but the password did not match — keep the sign-in
+          // wording so we do not tell the player which case they hit.
+          throw isUsernameTakenError(signUpError) ? signInError : signUpError;
+        }
+      }
 
       if (typeof window !== "undefined") {
         const rememberedIdentifier = authenticatedUser?.username?.trim() || identifier.trim();
@@ -62,48 +83,9 @@ export function SignInForm() {
     <div className="w-full max-w-full">
       <h2 className="text-center font-display text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">FourFive</h2>
 
-      <div className="mt-8 grid grid-cols-2 rounded-xl border border-zinc-200 bg-zinc-100/70 p-1">
-        <button
-          type="button"
-          className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all ${
-            flow === "signIn"
-              ? "border-zinc-900 bg-white text-zinc-900 shadow-sm"
-              : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-white/70"
-          }`}
-          onClick={() => setFlow("signIn")}
-          aria-pressed={flow === "signIn"}
-        >
-          <span
-            className={`h-2.5 w-2.5 rounded-full border ${
-              flow === "signIn" ? "border-zinc-900 bg-zinc-900" : "border-zinc-400 bg-transparent"
-            }`}
-            aria-hidden="true"
-          />
-          Sign in
-        </button>
-        <button
-          type="button"
-          className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all ${
-            flow === "signUp"
-              ? "border-zinc-900 bg-white text-zinc-900 shadow-sm"
-              : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-white/70"
-          }`}
-          onClick={() => setFlow("signUp")}
-          aria-pressed={flow === "signUp"}
-        >
-          <span
-            className={`h-2.5 w-2.5 rounded-full border ${
-              flow === "signUp" ? "border-zinc-900 bg-zinc-900" : "border-zinc-400 bg-transparent"
-            }`}
-            aria-hidden="true"
-          />
-          Create account
-        </button>
-      </div>
-
       {auth.errorMessage ? (
         <div
-          className={`mt-6 rounded-xl px-4 py-3 text-sm leading-6 shadow-sm ${
+          className={`mt-8 rounded-xl px-4 py-3 text-sm leading-6 shadow-sm ${
             isDeploymentProtectionBlocked
               ? "border border-amber-200 bg-amber-50 text-amber-900"
               : "border border-rose-200 bg-rose-50 text-rose-900"
@@ -113,7 +95,7 @@ export function SignInForm() {
         </div>
       ) : null}
 
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <label className="block space-y-2">
           <span className="text-sm font-semibold text-zinc-700">Username</span>
           <input
@@ -127,11 +109,9 @@ export function SignInForm() {
             autoCapitalize="none"
             required
           />
-          {flow === "signUp" ? (
-            <span className="block text-xs leading-5 text-zinc-500">
-              Use 2-20 characters with letters, numbers, hyphens, or underscores.
-            </span>
-          ) : null}
+          <span className="block text-xs leading-5 text-zinc-500">
+            Use 2-20 characters with letters, numbers, hyphens, or underscores.
+          </span>
         </label>
         <label className="block space-y-2">
           <span className="text-sm font-semibold text-zinc-700">Password</span>
@@ -139,48 +119,43 @@ export function SignInForm() {
             className="auth-input-field text-[16px]"
             type="password"
             name="password"
-            placeholder={flow === "signIn" ? "Enter your password" : "Create a password"}
-            autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+            placeholder="Enter your password"
+            autoComplete="current-password"
             required
           />
         </label>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? "Working..." : flow === "signIn" ? "Sign in" : "Create account"}
-        </button>
+        <div className="space-y-3 pt-2">
+          <button
+            type="submit"
+            disabled={submitting || anonymousSubmitting}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "Working..." : "Sign in / create account"}
+          </button>
+          <button
+            type="button"
+            disabled={submitting || anonymousSubmitting}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white/60 px-4 py-3 font-semibold text-zinc-800 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              if (submitting || anonymousSubmitting) {
+                return;
+              }
+
+              setAnonymousSubmitting(true);
+              void auth
+                .signInAnonymous()
+                .catch((error) => {
+                  toast.error(error instanceof Error ? error.message : "Anonymous sign-in failed.");
+                })
+                .finally(() => {
+                  setAnonymousSubmitting(false);
+                });
+            }}
+          >
+            {anonymousSubmitting ? "Working..." : "Continue as guest"}
+          </button>
+        </div>
       </form>
-
-      <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-        <span className="h-px flex-1 bg-zinc-200" />
-        <span>or</span>
-        <span className="h-px flex-1 bg-zinc-200" />
-      </div>
-
-      <button
-        type="button"
-        disabled={submitting || anonymousSubmitting}
-        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white/60 px-4 py-3 font-semibold text-zinc-800 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={() => {
-          if (submitting || anonymousSubmitting) {
-            return;
-          }
-
-          setAnonymousSubmitting(true);
-          void auth
-            .signInAnonymous()
-            .catch((error) => {
-              toast.error(error instanceof Error ? error.message : "Anonymous sign-in failed.");
-            })
-            .finally(() => {
-              setAnonymousSubmitting(false);
-            });
-        }}
-      >
-        {anonymousSubmitting ? "Working..." : "Continue as guest"}
-      </button>
     </div>
   );
 }
