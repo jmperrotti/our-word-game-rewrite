@@ -1,21 +1,57 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./lib/auth";
 
 const LAST_AUTH_IDENTIFIER_KEY = "fourfive.lastAuthIdentifier";
+const SAVED_PASSWORD_KEY = "fourfive.savedPassword";
+const SAVE_SIGN_IN_KEY = "fourfive.saveSignIn";
+
+type AuthStorage = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+};
+
+export type SavedSignIn = {
+  identifier: string;
+  password: string;
+  save: boolean;
+};
 
 export function resolvePreferredAuthIdentifier(rememberedIdentifier: string) {
   return rememberedIdentifier.trim();
 }
 
-function readPreferredAuthIdentifier() {
-  if (typeof window === "undefined") {
-    return "";
+export function readSavedSignIn(storage: AuthStorage): SavedSignIn {
+  const save = storage.getItem(SAVE_SIGN_IN_KEY) === "1";
+  return {
+    identifier: resolvePreferredAuthIdentifier(storage.getItem(LAST_AUTH_IDENTIFIER_KEY) ?? ""),
+    password: save ? (storage.getItem(SAVED_PASSWORD_KEY) ?? "") : "",
+    save,
+  };
+}
+
+export function writeSavedSignIn(
+  storage: AuthStorage,
+  input: { identifier: string; password: string; save: boolean }
+) {
+  const identifier = input.identifier.trim();
+
+  if (input.save && identifier) {
+    storage.setItem(SAVE_SIGN_IN_KEY, "1");
+    storage.setItem(LAST_AUTH_IDENTIFIER_KEY, identifier);
+    storage.setItem(SAVED_PASSWORD_KEY, input.password);
+    return;
   }
 
-  const rememberedIdentifier = window.localStorage.getItem(LAST_AUTH_IDENTIFIER_KEY) ?? "";
-  return resolvePreferredAuthIdentifier(rememberedIdentifier);
+  storage.removeItem(SAVE_SIGN_IN_KEY);
+  storage.removeItem(SAVED_PASSWORD_KEY);
+  if (identifier) {
+    storage.setItem(LAST_AUTH_IDENTIFIER_KEY, identifier);
+  } else {
+    storage.removeItem(LAST_AUTH_IDENTIFIER_KEY);
+  }
 }
 
 function isInvalidCredentialsError(error: unknown) {
@@ -26,20 +62,22 @@ function isUsernameTakenError(error: unknown) {
   return error instanceof Error && /already taken/i.test(error.message);
 }
 
+function readInitialSavedSignIn(): SavedSignIn {
+  if (typeof window === "undefined") {
+    return { identifier: "", password: "", save: false };
+  }
+
+  return readSavedSignIn(window.localStorage);
+}
+
 export function SignInForm() {
   const auth = useAuth();
-  const [identifier, setIdentifier] = useState("");
+  const [identifier, setIdentifier] = useState(() => readInitialSavedSignIn().identifier);
+  const [password, setPassword] = useState(() => readInitialSavedSignIn().password);
+  const [saveSignIn, setSaveSignIn] = useState(() => readInitialSavedSignIn().save);
   const [submitting, setSubmitting] = useState(false);
   const [anonymousSubmitting, setAnonymousSubmitting] = useState(false);
   const isDeploymentProtectionBlocked = Boolean(auth.errorMessage?.includes("Vercel Authentication"));
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    setIdentifier(readPreferredAuthIdentifier());
-  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,6 +85,7 @@ export function SignInForm() {
     const formData = new FormData(event.currentTarget);
     const identifier = String(formData.get("identifier") ?? "");
     const password = String(formData.get("password") ?? "");
+    const shouldSave = formData.get("saveSignIn") === "on";
 
     try {
       let authenticatedUser: Awaited<ReturnType<typeof auth.signIn>>;
@@ -67,10 +106,11 @@ export function SignInForm() {
       }
 
       if (typeof window !== "undefined") {
-        const rememberedIdentifier = authenticatedUser?.username?.trim() || identifier.trim();
-        if (rememberedIdentifier) {
-          window.localStorage.setItem(LAST_AUTH_IDENTIFIER_KEY, rememberedIdentifier);
-        }
+        writeSavedSignIn(window.localStorage, {
+          identifier: authenticatedUser?.username?.trim() || identifier,
+          password,
+          save: shouldSave,
+        });
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Authentication failed.");
@@ -119,10 +159,27 @@ export function SignInForm() {
             className="auth-input-field text-[16px]"
             type="password"
             name="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
             placeholder="Enter your password"
             autoComplete="current-password"
             required
           />
+        </label>
+        <label className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-white/60 px-4 py-3">
+          <input
+            type="checkbox"
+            name="saveSignIn"
+            checked={saveSignIn}
+            onChange={(event) => setSaveSignIn(event.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
+          />
+          <span className="space-y-1">
+            <span className="block text-sm font-semibold text-zinc-800">Save my sign-in information</span>
+            <span className="block text-xs leading-5 text-zinc-500">
+              Keep this username and password on this device so you do not have to type them next time.
+            </span>
+          </span>
         </label>
         <div className="space-y-3 pt-2">
           <button

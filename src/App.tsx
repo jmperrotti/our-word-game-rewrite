@@ -1,5 +1,5 @@
 import { Toaster } from "sonner";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { FriendView } from "../shared/types";
 import { GameLobby } from "./components/GameLobby";
@@ -11,6 +11,7 @@ import { FriendsPanel } from "./components/social/FriendsPanel";
 import { GuestInvitesPanel } from "./components/social/GuestInvitesPanel";
 import { SocialDataProvider } from "./components/social/SocialDataProvider";
 import { SocialInbox } from "./components/social/SocialInbox";
+import { HowToPlay } from "./components/HowToPlay";
 import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
 import { useAuth } from "./lib/auth";
@@ -132,22 +133,7 @@ function Content() {
   const [openInbox, setOpenInbox] = useState(false);
   const [openGuestInvites, setOpenGuestInvites] = useState(false);
   const [pendingJoinCode, setPendingJoinCode] = useState<string>(() => readInviteCodeFromUrl());
-  const [showHowToPlayAfterAuth, setShowHowToPlayAfterAuth] = useState(false);
-  const previousAuthenticatedRef = useRef<boolean | null>(null);
-
-  // After the sign-in page, How to Play is the next thing the player sees.
-  // Wait until the first auth check finishes so a returning signed-in session
-  // does not look like they just left the sign-in page.
-  useEffect(() => {
-    if (loading) {
-      return;
-    }
-
-    if (previousAuthenticatedRef.current === false && isAuthenticated) {
-      setShowHowToPlayAfterAuth(true);
-    }
-    previousAuthenticatedRef.current = isAuthenticated;
-  }, [loading, isAuthenticated]);
+  const [showLandingHowToPlay, setShowLandingHowToPlay] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined" || !user?.id) {
@@ -441,18 +427,30 @@ function Content() {
                 <div className="h-64 animate-pulse rounded-xl border border-zinc-200 bg-white" />
               </div>
             ) : !isAuthenticated ? (
-              <div className="mx-auto w-full max-w-md pt-8 sm:pt-14">
-                {pendingJoinCode && (
-                  <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    <p className="font-semibold">You&apos;ve been invited to a match!</p>
-                    <p className="mt-0.5 text-blue-700">
-                      Sign in or continue as a guest to join room{" "}
-                      <span className="font-mono font-bold tracking-widest">{pendingJoinCode}</span>.
-                    </p>
+              showLandingHowToPlay ? (
+                <HowToPlay
+                  forceOpen
+                  hideTrigger
+                  closeLabel="Continue to sign in"
+                  onForceOpenConsumed={() => setShowLandingHowToPlay(false)}
+                />
+              ) : (
+                <div className="mx-auto w-full max-w-md pt-8 sm:pt-14">
+                  {pendingJoinCode && (
+                    <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                      <p className="font-semibold">You&apos;ve been invited to a match!</p>
+                      <p className="mt-0.5 text-blue-700">
+                        Sign in or continue as a guest to join room{" "}
+                        <span className="font-mono font-bold tracking-widest">{pendingJoinCode}</span>.
+                      </p>
+                    </div>
+                  )}
+                  <SignInForm />
+                  <div className="mt-6 text-center">
+                    <HowToPlay />
                   </div>
-                )}
-                <SignInForm />
-              </div>
+                </div>
+              )
             ) : gamePhase === "playing" && currentGameId ? (
               <GameBoard
                 key={currentGameId}
@@ -461,8 +459,6 @@ function Content() {
                 // should also drop the lobby code and public flag from the game
                 // just left. Both now clear the secret word (see playState).
                 onExitToMenu={() => setPlayState((prev) => resetPlayState(prev))}
-                forceHowToPlay={showHowToPlayAfterAuth}
-                onHowToPlayConsumed={() => setShowHowToPlayAfterAuth(false)}
               />
             ) : (
               <div className="space-y-6">
@@ -511,8 +507,6 @@ function Content() {
                         setOpenInbox(true);
                       }
                     }}
-                    forceHowToPlay={showHowToPlayAfterAuth}
-                    onHowToPlayConsumed={() => setShowHowToPlayAfterAuth(false)}
                   />
                 )}
               </div>

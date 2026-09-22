@@ -7,6 +7,9 @@ interface HowToPlayProps {
   variant?: "full" | "icon";
   forceOpen?: boolean;
   onForceOpenConsumed?: () => void;
+  /** Hide the trigger button when How to Play is the landing page itself. */
+  hideTrigger?: boolean;
+  closeLabel?: string;
 }
 
 // Mini letter tiles, styled exactly like the game's alphabet/rearranger tiles,
@@ -83,7 +86,13 @@ function GuessComposerExample({
   );
 }
 
-export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: HowToPlayProps) {
+export function HowToPlay({
+  variant = "full",
+  forceOpen,
+  onForceOpenConsumed,
+  hideTrigger = false,
+  closeLabel,
+}: HowToPlayProps) {
   const [open, setOpen] = useState(false);
   const isOpen = open || Boolean(forceOpen);
 
@@ -101,7 +110,7 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
 
   return (
     <>
-      {variant === "full" ? (
+      {hideTrigger ? null : variant === "full" ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -121,7 +130,7 @@ export function HowToPlay({ variant = "full", forceOpen, onForceOpenConsumed }: 
         </button>
       )}
 
-      <SocialOverlay open={isOpen} onClose={close} title="FourFive" size="md">
+      <SocialOverlay open={isOpen} onClose={close} title="FourFive" size="md" closeLabel={closeLabel}>
         <div className="space-y-6 text-sm leading-6 text-zinc-700">
           <div className="space-y-1">
             <p className="text-base font-bold text-zinc-900">

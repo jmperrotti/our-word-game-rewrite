@@ -43,6 +43,7 @@ export interface SocialOverlayProps {
   size?: keyof typeof SIZE_CLASS_MAP;
   labelledBy?: string;
   describedBy?: string;
+  closeLabel?: string;
 }
 
 function getFocusableElements(root: HTMLElement | null) {
@@ -81,6 +82,7 @@ export function SocialOverlay({
   size = "md",
   labelledBy,
   describedBy,
+  closeLabel = "Close",
 }: SocialOverlayProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
@@ -269,7 +271,7 @@ export function SocialOverlay({
                 onClick={onClose}
                 className="inline-flex min-h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
               >
-                Close
+                {closeLabel}
               </button>
             </div>
           </div>
