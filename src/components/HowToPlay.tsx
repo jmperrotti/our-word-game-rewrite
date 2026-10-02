@@ -121,7 +121,7 @@ export function HowToPlay({
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Guess four-letter words.</p>
+            <p className="font-bold text-zinc-900">Guess 4-letter words.</p>
             <p>
               No repeating letters here either! Type a word, then tap the 4-letter guess box. Every guess tells you
               how many of its letters appear in your opponent&rsquo;s word.
