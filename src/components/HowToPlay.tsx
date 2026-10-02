@@ -38,16 +38,16 @@ function ExampleAlphabetBoard() {
     U: "green",
     B: "red",
     D: "red",
-    E: "red",
     F: "red",
-    G: "red",
-    H: "red",
     I: "red",
-    J: "red",
-    L: "red",
     M: "red",
-    N: "red",
-    P: "red",
+    O: "red",
+    R: "red",
+    T: "red",
+    W: "red",
+    X: "red",
+    Y: "red",
+    Z: "red",
   };
   const tones = {
     blank: "border-zinc-300 bg-white text-zinc-700",
@@ -59,7 +59,7 @@ function ExampleAlphabetBoard() {
     <div
       className="overflow-hidden rounded-xl border border-zinc-200 bg-white"
       role="img"
-      aria-label="Alphabet board. A, C, K, Q, and U are green. B, D, E, F, G, H, I, J, L, M, N, and P are red."
+      aria-label="Alphabet board. A, C, K, Q, and U are green. B, D, F, I, M, O, R, T, W, X, Y, and Z are red."
     >
       <div className="grid grid-cols-7 gap-1 p-2">
         {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => {
@@ -186,8 +186,13 @@ export function HowToPlay({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <div className="min-w-0 flex-1 space-y-2">
                 <p className="font-bold text-zinc-900">Keep track of letters on the alphabet board.</p>
-                <p>Tap a letter once for green if it is in their word.</p>
-                <p>Tap it twice for red if it is not.</p>
+                <p>
+                  Tap a letter once for <span className="font-semibold text-emerald-600">green</span> if it is in their
+                  word.
+                </p>
+                <p>
+                  Tap it twice for <span className="font-semibold text-rose-600">red</span> if it is not.
+                </p>
               </div>
               <div className="sm:w-64 sm:shrink-0">
                 <ExampleAlphabetBoard />
