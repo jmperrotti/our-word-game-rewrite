@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { GuessView } from "../../shared/types";
+import type { GameStateView, GuessView } from "../../shared/types";
 import {
   countGuessMatches,
   mergeGuessRows,
   mergeGuessViewsMonotonic,
+  isStaleInProgressSnapshot,
+  mergeIncomingGameState,
   selectPendingGuessRows,
 } from "./optimisticGuesses";
 
@@ -154,5 +156,58 @@ describe("mergeGuessRows", () => {
   it("returns the committed list untouched when nothing is in flight", () => {
     const list = committed("HAND", "PART");
     expect(mergeGuessRows(list, [])).toEqual(list);
+  });
+});
+
+describe("isStaleInProgressSnapshot", () => {
+  it("keeps a completed snapshot that lost the sequence race to a pre-win poll", () => {
+    expect(isStaleInProgressSnapshot("completed", 4, 5)).toBe(false);
+    expect(isStaleInProgressSnapshot("active", 4, 5)).toBe(true);
+  });
+});
+
+describe("mergeIncomingGameState", () => {
+  function state(status: "active" | "completed", guesses: string[]): GameStateView {
+    return {
+      game: {
+        id: "game-1",
+        code: "ABCDEF",
+        status,
+        public: false,
+        createdAt: 1,
+        lastActivityAt: 2,
+        winnerId: status === "completed" ? "winner" : undefined,
+      },
+      me: { id: "me", username: "me", alphabet: {}, totalGuesses: guesses.length },
+      opponent: { id: "winner", username: "them", totalGuesses: 1, isBot: false },
+      myGuesses: guesses.map((text, index) => ({
+        id: text,
+        playerId: "me",
+        text,
+        type: "fourLetter" as const,
+        matchCount: 1,
+        isCorrect: false,
+        guessNumber: index + 1,
+        createdAt: index + 1,
+      })),
+      opponentGuesses: [],
+      opponentFoundLetterCount: 0,
+      presence: { me: "online" as const, opponent: "online" as const },
+    };
+  }
+
+  it("keeps a completed game when a slower refetch still says it is active", () => {
+    const completed = state("completed", ["LIGHT"]);
+    const staleActive = state("active", ["CARE"]);
+
+    expect(mergeIncomingGameState(completed, staleActive)).toBe(completed);
+  });
+
+  it("still applies a completed snapshot over an active one", () => {
+    const active = state("active", ["CARE"]);
+    const completed = state("completed", ["CARE", "LIGHT"]);
+
+    expect(mergeIncomingGameState(active, completed)?.game.status).toBe("completed");
+    expect(mergeIncomingGameState(active, completed)?.myGuesses.map((guess) => guess.text)).toEqual(["CARE", "LIGHT"]);
   });
 });

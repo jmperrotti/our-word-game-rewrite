@@ -58,17 +58,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
   // row until the matching committed row lands.
   const [optimisticGuesses, setOptimisticGuesses] = useState<OptimisticGuessRow[]>([]);
   const [isLeavingWaitingLobby, setIsLeavingWaitingLobby] = useState(false);
-  const [guessType, setGuessType] = useState<"fourLetter" | "fullWord">("fourLetter");
-  const guessMaxLength = guessType === "fourLetter" ? 4 : 5;
-
-  // Switching modes re-caps the input: picking "4" trims a longer draft so the
-  // box always holds at most the mode's length.
-  const selectGuessType = (type: "fourLetter" | "fullWord") => {
-    setGuessType(type);
-    if (type === "fourLetter") {
-      setGuessText((prev) => prev.slice(0, 4));
-    }
-  };
+  const guessMaxLength = 5;
   // Word rearranger: green (confirmed) letters shown as tiles you can shuffle
   // into anagram candidates. Compact + only rendered when it's useful (2+
   // letters), so it costs no vertical space early game.
@@ -114,6 +104,9 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
   // flash into the rearranger. Removals are immediate.
   const pendingGreenTimersRef = useRef<Map<string, number>>(new Map());
   const announcedCompletionRef = useRef<string | null>(null);
+  // Locked in the moment our winning guess is confirmed, so the end screen
+  // replaces the board even if a slower refresh still says the game is active.
+  const [wonGameId, setWonGameId] = useState<string | null>(null);
   const guessFormRef = useRef<HTMLFormElement | null>(null);
   const guessInputRef = useRef<HTMLInputElement | null>(null);
   const myGuessesRef = useRef<HTMLDivElement | null>(null);
@@ -138,6 +131,9 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
       guessQueueRef.current = [];
     };
   }, []);
+  useEffect(() => {
+    setWonGameId(null);
+  }, [gameId]);
   const latestGameStatusRef = useRef(gameState?.game.status);
 
   const currentPlayer = gameState?.me;
@@ -376,7 +372,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
     }, 900);
   };
 
-  const submitCurrentGuess = async () => {
+  const submitCurrentGuess = async (type: "fourLetter" | "fullWord") => {
     // Neither isSubmitting nor the pacing delay belongs in this guard. Both
     // describe when a guess may be SENT, and gating acceptance on them threw
     // the guess away with no row, no toast and no request: the player saw the
@@ -389,9 +385,9 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
     // budget — holding the lock here made a typo cost a full cooldown before
     // the corrected word could be sent.
     const word = guessText.trim().toUpperCase();
-    const expectedLength = guessType === "fourLetter" ? 4 : 5;
+    const expectedLength = type === "fourLetter" ? 4 : 5;
     if (word.length !== expectedLength) {
-      toast.error(`${guessType === "fourLetter" ? "Four-letter" : "Full word"} guesses must be exactly ${expectedLength} letters`);
+      toast.error(`${type === "fourLetter" ? "Four-letter" : "Full word"} guesses must be exactly ${expectedLength} letters`);
       return;
     }
 
@@ -415,10 +411,10 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
     // Counts the in-flight rows too, so two copies of one word each get their
     // own watermark and retire independently.
     const priorCommittedCount =
-      countGuessMatches(myGuesses, word, guessType) + countGuessMatches(optimisticGuesses, word, guessType);
+      countGuessMatches(myGuesses, word, type) + countGuessMatches(optimisticGuesses, word, type);
     setOptimisticGuesses((rows) => [
       ...rows,
-      { id: optimisticId, text: word, type: guessType, pending: true, priorCommittedCount },
+      { id: optimisticId, text: word, type, pending: true, priorCommittedCount },
     ]);
     setGuessText("");
     keepMyGuessesPinnedRef.current = true;
@@ -437,9 +433,26 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
 
     // Hand off to the queue instead of awaiting the request here. See
     // drainGuessQueue for why submission is serialized.
-    guessQueueRef.current.push({ optimisticId, word, type: guessType });
+    guessQueueRef.current.push({ optimisticId, word, type });
     setIsSubmitting(true);
     void drainGuessQueue();
+  };
+
+  // The keyboard's action key has no 4/5 button to press. Four letters send a
+  // probe; five letters send a solve attempt.
+  const submitGuessFromKeyboard = () => {
+    const word = guessText.trim();
+    if (word.length === 4) {
+      void submitCurrentGuess("fourLetter");
+      return;
+    }
+    if (word.length === 5) {
+      void submitCurrentGuess("fullWord");
+      return;
+    }
+    if (word) {
+      toast.error("Guesses must be exactly 4 or 5 letters");
+    }
   };
 
   // Sends queued guesses ONE AT A TIME, in the order they were typed.
@@ -497,8 +510,9 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
           // keyboard finish first; desktop shows it immediately.
           const showResultToast = () => {
             if (result.isCorrect) {
-              toast.success("You guessed it!");
-            } else if (queued.type === "fullWord") {
+              return;
+            }
+            if (queued.type === "fullWord") {
               toast("Not the word.");
             } else {
               toast(
@@ -513,9 +527,14 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
           }
 
           if (result.isCorrect) {
-            // The game is over. Anything still queued would only collect
-            // "Game is not active." errors, so drop those rows quietly rather
-            // than firing a toast per guess.
+            // The game is over. Show the win screen now, instead of leaving
+            // the guess marked "Correct" on the live board. Anything still
+            // queued would only collect "Game is not active." errors.
+            setWonGameId(gameId);
+            if (announcedCompletionRef.current !== gameId) {
+              announcedCompletionRef.current = gameId;
+              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            }
             const abandoned = guessQueueRef.current.slice(1);
             guessQueueRef.current = [];
             if (abandoned.length > 0) {
@@ -627,12 +646,13 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
 
   const isGameActive = gameState.game.status === "active";
   const isWaitingForOpponent = gameState.game.status === "waiting";
+  const showFinale = gameState.game.status === "completed" || wonGameId === gameId;
   const queryError = gameStateQuery.error;
 
   return (
     <div
       className={`flex min-h-0 flex-1 flex-col lg:min-h-fit lg:flex-none ${
-        gameState.game.status === "completed"
+        showFinale
           ? "lg:mx-auto lg:w-full lg:max-w-2xl"
           : "lg:grid lg:grid-cols-[minmax(0,1fr)_480px] lg:gap-5"
       }`}
@@ -675,10 +695,10 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
           </div>
         )}
 
-        {opponent && gameState.game.status === "completed" && (
+        {opponent && showFinale && (
           <div className="flex flex-1 flex-col justify-center gap-4 py-4">
             {(() => {
-              const didWin = currentPlayer.id === gameState.game.winnerId;
+              const didWin = wonGameId === gameId || currentPlayer.id === gameState.game.winnerId;
               const abandoned = !gameState.game.winnerId;
               return (
                 <div
@@ -695,7 +715,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
                       abandoned ? "text-zinc-700" : didWin ? "text-emerald-800" : "text-rose-800"
                     }`}
                   >
-                    {abandoned ? "Game over" : didWin ? "You won! 🎉" : `${opponent.username} won`}
+                    {abandoned ? "Game over" : didWin ? "You win!" : `${opponent.username} won`}
                   </p>
                   <p className="mt-1.5 text-sm text-zinc-600">
                     {abandoned
@@ -736,7 +756,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
           </div>
         )}
 
-        {opponent && gameState.game.status !== "completed" && (
+        {opponent && !showFinale && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 lg:block lg:min-h-fit lg:space-y-5">
             {/* Status row doubles as the nav row: back button lives inline so it
                 doesn't cost a whole row of vertical space on mobile. */}
@@ -862,7 +882,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
                 ref={guessFormRef}
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void submitCurrentGuess();
+                  submitGuessFromKeyboard();
                 }}
                 className="shrink-0 space-y-2.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
               >
@@ -881,7 +901,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
                       onChange={(e) =>
                         setGuessText(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, guessMaxLength))
                       }
-                      placeholder={guessType === "fourLetter" ? "4-letter guess" : "5-letter guess"}
+                      placeholder="Type a guess"
                       maxLength={guessMaxLength}
                       autoCapitalize="characters"
                       spellCheck={false}
@@ -897,7 +917,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
-                          void submitCurrentGuess();
+                          submitGuessFromKeyboard();
                         }
                       }}
                       // Deliberately NOT disabled while a guess is in flight:
@@ -915,53 +935,39 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
                       <GuessLetters word={guessText} alphabet={displayedAlphabet} />
                     </span>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={!guessText.trim() || isSubmitting || guessText.length !== guessMaxLength}
-                    // Submit on pointerdown, BEFORE the input blurs. Tapping the
-                    // button while the keyboard is up otherwise fires blur first,
-                    // whose scroll correction moves the button out from under the
-                    // finger before the click lands — the tap goes dead. The
-                    // preventDefault keeps focus (and the page) frozen until the
-                    // submit handler blurs deliberately; the isSubmitting guard
-                    // absorbs the redundant click/submit that may follow.
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      void submitCurrentGuess();
-                    }}
-                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-lg font-bold lg:min-h-[3.25rem] lg:min-w-[3.25rem] lg:text-xl text-white transition hover:bg-zinc-800 active:scale-95 disabled:opacity-40"
-                    aria-label="Submit guess"
-                  >
-                    {isSubmitting ? "…" : "↑"}
-                  </button>
                 </div>
-                {/* Switching guess length is local state and must never be
-                    blocked by an in-flight request: these were disabled while
-                    isSubmitting, so a player mid-rally could not switch to
-                    5-letter mode to make the winning guess — the click did
-                    nothing and they had to try again. */}
+                {/* These buttons submit. Pointerdown runs before the input
+                    blurs: tapping while the keyboard is up otherwise fires
+                    blur first, and the scroll correction moves the button out
+                    from under the finger before the click lands. */}
                 <div className="grid grid-cols-2 rounded-lg bg-zinc-100 p-0.5">
                   <button
                     type="button"
-                    onClick={() => selectGuessType("fourLetter")}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      void submitCurrentGuess("fourLetter");
+                    }}
                     className={`inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition active:scale-[0.98] ${
-                      guessType === "fourLetter"
+                      guessText.length === 4
                         ? "border-zinc-900 bg-white text-zinc-900 shadow-sm"
                         : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-white/70"
                     }`}
-                    aria-pressed={guessType === "fourLetter"}
+                    aria-pressed={guessText.length === 4}
                   >
                     4-letter guess
                   </button>
                   <button
                     type="button"
-                    onClick={() => selectGuessType("fullWord")}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      void submitCurrentGuess("fullWord");
+                    }}
                     className={`inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition active:scale-[0.98] ${
-                      guessType === "fullWord"
+                      guessText.length === 5
                         ? "border-zinc-900 bg-white text-zinc-900 shadow-sm"
                         : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-white/70"
                     }`}
-                    aria-pressed={guessType === "fullWord"}
+                    aria-pressed={guessText.length === 5}
                   >
                     5-letter guess
                   </button>
@@ -973,7 +979,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
 
       </div>
 
-      {gameState.game.status !== "completed" && (
+      {!showFinale && (
         <div className="min-w-0 lg:sticky lg:top-16 lg:self-start hidden lg:block">
           <AlphabetBoard
             displayedAlphabet={displayedAlphabet}

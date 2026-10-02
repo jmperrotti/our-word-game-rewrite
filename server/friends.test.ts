@@ -219,6 +219,32 @@ describe("friends service", () => {
     await expect(sendGameInvite(alpha, created.gameId, bravo.id)).rejects.toThrow("Waiting game not found.");
   });
 
+  it("removes a pending invite from both inboxes once the waiting lobby expires", async () => {
+    const alpha = makeUser("user-alpha", "alpha@example.com", "alpha");
+    const bravo = makeUser("user-bravo", "bravo@example.com", "bravo");
+    seedUser(alpha);
+    seedUser(bravo);
+
+    const request = await sendFriendRequest(alpha, bravo.username);
+    await acceptFriendRequest(bravo, request.requestId);
+
+    const created = await createGame(alpha, "Alpha", "CRANE", false);
+    const invite = await sendGameInvite(alpha, created.gameId, bravo.id);
+    const before = await listSocialOverview(bravo);
+    expect(before.incomingGameInvites).toHaveLength(1);
+    expect(before.incomingGameInvites[0]?.expiresAt).toBeGreaterThan(Date.now());
+
+    db.prepare(`UPDATE games SET created_at = ? WHERE id = ?`).run(Date.now() - 13 * 60 * 60 * 1000, created.gameId);
+
+    expect((await listSocialOverview(alpha)).outgoingGameInvites).toHaveLength(0);
+    expect((await listSocialOverview(bravo)).incomingGameInvites).toHaveLength(0);
+
+    const row = db.prepare(`SELECT status FROM game_invites WHERE id = ?`).get(invite.inviteId) as
+      | { status: string }
+      | undefined;
+    expect(row?.status ?? "expired").not.toBe("pending");
+  });
+
   it("supports declining and canceling game invites", async () => {
     const alpha = makeUser("user-alpha", "alpha@example.com", "alpha");
     const bravo = makeUser("user-bravo", "bravo@example.com", "bravo");

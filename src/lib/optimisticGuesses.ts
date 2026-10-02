@@ -1,4 +1,4 @@
-import type { GuessView } from "../../shared/types";
+import type { GameStateView, GuessView } from "../../shared/types";
 
 /** A guess drawn immediately, before the server has confirmed it. */
 export interface PendingGuessRow {
@@ -90,6 +90,40 @@ export function selectPendingGuessRows<C extends CommittedGuessRow, O extends Pe
  * answered knows its own guess number, so it can be placed by that number like
  * any other row. Only rows still awaiting an answer go last, where they belong.
  */
+/**
+ * A completed game is terminal.
+ * An in-flight poll can start later, read the board before the winning guess
+ * commits, and still return after the win. Its sequence number is newer, so
+ * treating every older snapshot as stale threw the win away and left the
+ * player on the live board with the guess marked "Correct".
+ */
+export function isStaleInProgressSnapshot(
+  incomingStatus: "waiting" | "active" | "completed" | undefined,
+  seq: number | undefined,
+  appliedSeq: number
+) {
+  return incomingStatus !== "completed" && seq !== undefined && seq < appliedSeq;
+}
+
+export function mergeIncomingGameState(
+  previous: GameStateView | null | undefined,
+  incoming: GameStateView | null
+): GameStateView | null {
+  if (!incoming || !previous || previous.game.id !== incoming.game.id) {
+    return incoming;
+  }
+
+  if (previous.game.status === "completed" && incoming.game.status !== "completed") {
+    return previous;
+  }
+
+  return {
+    ...incoming,
+    myGuesses: mergeGuessViewsMonotonic(previous.myGuesses, incoming.myGuesses),
+    opponentGuesses: mergeGuessViewsMonotonic(previous.opponentGuesses, incoming.opponentGuesses),
+  };
+}
+
 export function mergeGuessRows<C extends CommittedGuessRow, O extends PendingGuessRow>(
   committed: readonly C[],
   pending: readonly O[]

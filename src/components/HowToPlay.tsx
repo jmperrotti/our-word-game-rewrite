@@ -168,7 +168,7 @@ export function HowToPlay({
             <p className="font-bold text-zinc-900">
               Guess your opponent&rsquo;s 5-letter word before they guess yours!
             </p>
-            <GuessComposerExample word="QUARK" selected="five" />
+            <GuessComposerExample word="QUARK" selected="five" showSubmitArrow={false} />
           </div>
 
           <div className="space-y-2 text-center">

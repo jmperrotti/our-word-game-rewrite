@@ -2,7 +2,13 @@ import { Router, type Request, type Response } from "express";
 import { v4 as uuid } from "uuid";
 import { requireUser } from "./auth.js";
 import { db } from "./db.js";
-import { isValidUsername, isWaitingGameExpired, normalizeWord, sanitizeUsername } from "../shared/gameLogic.js";
+import {
+  isValidUsername,
+  isWaitingGameExpired,
+  normalizeWord,
+  sanitizeUsername,
+  WAITING_GAME_TTL_MS,
+} from "../shared/gameLogic.js";
 import { getWordValidationReason } from "../shared/wordBank.js";
 import { performJoinWaitingGameWithRunner } from "./gameService.js";
 import { broadcastGameSignal } from "./realtime.js";
@@ -54,6 +60,7 @@ type GameInviteRow = {
   game_id: string;
   game_code: string;
   game_status: GameStatus;
+  game_created_at: number;
   public: number;
   sender_id: string;
   sender_email: string | null;
@@ -271,9 +278,14 @@ async function createFriendshipFromRequestWithRunner(
   return friendshipId;
 }
 
+function waitingLobbyExpiryThreshold(at = now()) {
+  return at - WAITING_GAME_TTL_MS;
+}
+
 async function cleanupExpiredWaitingGames() {
-  const expiredAt = now() - 12 * 60 * 60 * 1000;
-  const result = await db.prepare(`DELETE FROM games WHERE status = 'waiting' AND created_at < ?`).run(expiredAt);
+  const result = await db
+    .prepare(`DELETE FROM games WHERE status = 'waiting' AND created_at < ?`)
+    .run(waitingLobbyExpiryThreshold());
   return result.changes;
 }
 
@@ -326,8 +338,14 @@ async function expireInvalidPendingGameInvites() {
            FROM players
            WHERE players.game_id = game_invites.game_id
          ) >= 2
+         OR EXISTS (
+           SELECT 1
+           FROM games
+           WHERE games.id = game_invites.game_id
+             AND games.created_at < ?
+         )
        )`
-  ).run(now());
+  ).run(now(), waitingLobbyExpiryThreshold());
   return result.changes;
 }
 
@@ -386,6 +404,7 @@ function mapGameInvite(row: GameInviteRow): GameInviteView {
     gameId: row.game_id,
     gameCode: row.game_code,
     gameStatus: row.game_status,
+    expiresAt: row.game_created_at + WAITING_GAME_TTL_MS,
     sender,
     receiver,
     hostUserId: row.host_user_id,
@@ -431,7 +450,7 @@ async function getGameInviteByIdFrom(runner: DbRunner, inviteId: string) {
   return (await runner
     .prepare(
       `SELECT game_invites.id, game_invites.status, game_invites.created_at, game_invites.responded_at,
-              games.id AS game_id, games.code AS game_code, games.status AS game_status, games.public AS public,
+              games.id AS game_id, games.code AS game_code, games.status AS game_status, games.created_at AS game_created_at, games.public AS public,
               sender.id AS sender_id, sender.email AS sender_email, sender.username AS sender_username, sender.is_anonymous AS sender_is_anonymous,
               sender.created_at AS sender_created_at,
               receiver.id AS receiver_id, receiver.email AS receiver_email, receiver.username AS receiver_username, receiver.is_anonymous AS receiver_is_anonymous,
@@ -526,7 +545,7 @@ export async function listSocialOverview(user: AuthUser): Promise<SocialOverview
   const pendingInvites = (await db
     .prepare(
       `SELECT game_invites.id, game_invites.status, game_invites.created_at, game_invites.responded_at,
-              games.id AS game_id, games.code AS game_code, games.status AS game_status, games.public AS public,
+              games.id AS game_id, games.code AS game_code, games.status AS game_status, games.created_at AS game_created_at, games.public AS public,
               sender.id AS sender_id, sender.email AS sender_email, sender.username AS sender_username, sender.is_anonymous AS sender_is_anonymous,
               sender.created_at AS sender_created_at,
               receiver.id AS receiver_id, receiver.email AS receiver_email, receiver.username AS receiver_username, receiver.is_anonymous AS receiver_is_anonymous,
@@ -539,10 +558,17 @@ export async function listSocialOverview(user: AuthUser): Promise<SocialOverview
        JOIN players AS host_players
          ON host_players.game_id = game_invites.game_id AND host_players.user_id = game_invites.sender_user_id
        WHERE game_invites.status = 'pending'
+         AND games.status = 'waiting'
+         AND games.created_at >= ?
+         AND (
+           SELECT COUNT(*)
+           FROM players
+           WHERE players.game_id = game_invites.game_id
+         ) = 1
          AND (game_invites.sender_user_id = ? OR game_invites.receiver_user_id = ?)
        ORDER BY game_invites.created_at DESC`
     )
-    .all(user.id, user.id)) as GameInviteRow[];
+    .all(waitingLobbyExpiryThreshold(), user.id, user.id)) as GameInviteRow[];
 
   const invitableGames = (await db
     .prepare(

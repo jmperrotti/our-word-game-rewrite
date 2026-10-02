@@ -150,6 +150,8 @@ export interface GameInviteView {
   gameId: string;
   gameCode: string;
   gameStatus: GameStatus;
+  /** First moment this invite is expired: the waiting lobby's created time plus its TTL. */
+  expiresAt: number;
   sender: SocialUserSummary;
   receiver: SocialUserSummary;
   hostUserId: string;

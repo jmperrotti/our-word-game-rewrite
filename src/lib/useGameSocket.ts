@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { GameStateView } from "../../shared/types";
 import { api } from "./api";
-import { mergeGuessViewsMonotonic } from "./optimisticGuesses";
+import { isStaleInProgressSnapshot, mergeIncomingGameState } from "./optimisticGuesses";
 
 // Safety poll interval. Supabase Realtime broadcasts are the primary update
 // path; this slow poll is a backstop for missed/dropped signals. It is
@@ -96,25 +96,23 @@ export function useGameSocket(gameId: string | null): GameSocketResult {
     let latestRequestSeq = 0;
 
     const applyState = (state: GameStateView | null, seq?: number) => {
-      if (seq !== undefined && seq < appliedStateSeq) {
-        // Ignore: a newer state already won the race.
+      // A finished game is terminal. An in-flight poll that started later but
+      // read the board before the winning guess committed has a higher seq and
+      // used to win the race, so the winner stayed on the live board with the
+      // guess marked "Correct" and never saw the win screen. A completed
+      // snapshot is applied even when its seq is older.
+      if (isStaleInProgressSnapshot(state?.game.status, seq, appliedStateSeq)) {
         return;
       }
       if (seq !== undefined) {
-        appliedStateSeq = seq;
+        if (seq > appliedStateSeq) {
+          appliedStateSeq = seq;
+        }
       } else {
         appliedStateSeq = ++latestRequestSeq;
       }
 
-      const previous = dataRef.current?.gameState;
-      const mergedState =
-        state && previous && previous.game.id === state.game.id
-          ? {
-              ...state,
-              myGuesses: mergeGuessViewsMonotonic(previous.myGuesses, state.myGuesses),
-              opponentGuesses: mergeGuessViewsMonotonic(previous.opponentGuesses, state.opponentGuesses),
-            }
-          : state;
+      const mergedState = mergeIncomingGameState(dataRef.current?.gameState, state);
 
       const next: GameSocketResponse = { gameState: mergedState };
       dataRef.current = next;
