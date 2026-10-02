@@ -111,7 +111,7 @@ export function HowToPlay({
           <div className="space-y-1">
             <p className="text-sm font-bold tracking-[0.16em] text-zinc-900">WORD DEDUCTION GAME</p>
             <p className="text-base font-bold text-zinc-900">
-              Use 4-letter words to guess your opponent&rsquo;s 5-letter word!
+              Use 4-letter words to guess your opponent&rsquo;s 5-letter word.
             </p>
           </div>
 
@@ -123,7 +123,7 @@ export function HowToPlay({
           <div className="space-y-2">
             <p className="font-bold text-zinc-900">Guess 4-letter words.</p>
             <p>
-              No repeating letters here either! Type a word, then tap the 4-letter guess box. Every guess tells you
+              No repeating letters here either. Type a word, then tap the 4-letter guess box. Every guess tells you
               how many of its letters appear in your opponent&rsquo;s word.
             </p>
             <GuessComposerExample word="DUNK" selected="four" result="2" />
