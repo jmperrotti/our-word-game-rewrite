@@ -134,7 +134,7 @@ export function HowToPlay({
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Keep track of the letters.</p>
+            <p className="font-bold text-zinc-900">Keep track of letters on the alphabet board.</p>
             <p>Tap a letter once for green if it is in their word.</p>
             <p>Tap it twice for red if it is not.</p>
             <span className="inline-flex gap-1">
