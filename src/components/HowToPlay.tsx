@@ -45,42 +45,26 @@ function GuessComposerExample({
   word,
   selected,
   result,
-  showTypeToggle = true,
-  showSubmitArrow = true,
 }: {
   word: string;
   selected: "four" | "five";
   result?: string;
-  showTypeToggle?: boolean;
-  showSubmitArrow?: boolean;
 }) {
-  const selectedClass =
-    "inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-900 bg-white px-3 py-2 text-center text-sm font-semibold text-zinc-900 shadow-sm";
-  const idleClass =
-    "inline-flex min-h-11 items-center justify-center rounded-md border border-transparent px-3 py-2 text-center text-sm font-semibold text-zinc-700";
+  const boxClass =
+    "inline-flex min-h-11 items-center justify-center rounded-lg border px-3 py-2 text-center text-sm font-semibold shadow-sm";
+  const selectedClass = `${boxClass} border-zinc-900 bg-white text-zinc-900`;
+  const idleClass = `${boxClass} border-zinc-200 bg-white text-zinc-500`;
 
   return (
     <div className="space-y-2.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-      <div className="flex items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5">
-          <Word word={word} />
-          {result ? <span className="text-sm font-semibold text-zinc-700">{result}</span> : null}
-        </div>
-        {showSubmitArrow ? (
-          <span
-            aria-hidden="true"
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-lg font-bold text-white"
-          >
-            ↑
-          </span>
-        ) : null}
+      <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5">
+        <Word word={word} />
+        {result ? <span className="text-sm font-semibold text-zinc-700">{result}</span> : null}
       </div>
-      {showTypeToggle ? (
-        <div className="grid grid-cols-2 rounded-lg bg-zinc-100 p-0.5">
-          <span className={selected === "four" ? selectedClass : idleClass}>four-letter word</span>
-          <span className={selected === "five" ? selectedClass : idleClass}>five-letter word</span>
-        </div>
-      ) : null}
+      <div className="grid grid-cols-2 gap-2">
+        <span className={selected === "four" ? selectedClass : idleClass}>4-letter guess</span>
+        <span className={selected === "five" ? selectedClass : idleClass}>5-letter guess</span>
+      </div>
     </div>
   );
 }
@@ -138,16 +122,10 @@ export function HowToPlay({
           <div className="space-y-2">
             <p className="font-bold text-zinc-900">Guess four-letter words.</p>
             <p>
-              No repeating letters here either! Every guess tells you how many of its letters appear in your
-              opponent&rsquo;s word.
+              No repeating letters here either! Type a word, then tap the 4-letter guess box. Every guess tells you
+              how many of its letters appear in your opponent&rsquo;s word.
             </p>
-            <GuessComposerExample
-              word="DUNK"
-              selected="four"
-              result="2"
-              showTypeToggle={false}
-              showSubmitArrow={false}
-            />
+            <GuessComposerExample word="DUNK" selected="four" result="2" />
             <p>
               2 letters in your guess <span className="font-bold text-zinc-900">DUNK</span> are in the opponent&rsquo;s
               word <span className="font-bold text-zinc-900">QUARK</span>.
@@ -168,7 +146,8 @@ export function HowToPlay({
             <p className="font-bold text-zinc-900">
               Guess your opponent&rsquo;s 5-letter word before they guess yours!
             </p>
-            <GuessComposerExample word="QUARK" selected="five" showSubmitArrow={false} />
+            <p>Tap the 5-letter guess box to send it.</p>
+            <GuessComposerExample word="QUARK" selected="five" />
           </div>
 
           <div className="space-y-2 text-center">
