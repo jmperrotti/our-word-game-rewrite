@@ -109,6 +109,7 @@ export function HowToPlay({
       <SocialOverlay open={isOpen} onClose={close} title="FourFive" size="md" closeLabel={closeLabel}>
         <div className="space-y-6 text-sm leading-6 text-zinc-700">
           <div className="space-y-1">
+            <p className="text-sm font-bold tracking-[0.16em] text-zinc-900">WORD DEDUCTION GAME</p>
             <p className="text-base font-bold text-zinc-900">
               Use 4-letter words to guess your opponent&rsquo;s 5-letter word!
             </p>
