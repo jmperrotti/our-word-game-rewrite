@@ -50,6 +50,8 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
   const gameStateQuery = useGameSocket(gameId);
   const gameState = gameStateQuery.data?.gameState;
   const [guessText, setGuessText] = useState("");
+  const guessTextRef = useRef("");
+  guessTextRef.current = guessText;
   const [isSubmitting, setIsSubmitting] = useState(false);
   // A LIST, not a single row. With one slot, submitting a second guess evicted
   // the first before its server row had arrived in gameState — on a slow
@@ -378,13 +380,19 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
     // the guess away with no row, no toast and no request: the player saw the
     // word vanish. Acceptance is unconditional; the queue handles delivery and
     // the pacing wait below handles rate.
-    if (!currentPlayer || !guessText.trim()) return;
+    // Read the field itself. On a phone, tapping a button can run before the
+    // last typed letter has landed in React state, which made the tap look dead.
+    const typed = (guessInputRef.current?.value || guessTextRef.current).trim();
+    if (!currentPlayer || !typed) {
+      if (!typed) toast.error("Type a word, then tap 4-letter guess or 5-letter guess");
+      return;
+    }
 
     // Local validation runs before the pacing lock is taken. These rejections
     // never reach the server, so they must not spend the player's pacing
     // budget — holding the lock here made a typo cost a full cooldown before
     // the corrected word could be sent.
-    const word = guessText.trim().toUpperCase();
+    const word = typed.toUpperCase().replace(/[^A-Z]/g, "");
     const expectedLength = type === "fourLetter" ? 4 : 5;
     if (word.length !== expectedLength) {
       toast.error(`${type === "fourLetter" ? "Four-letter" : "Full word"} guesses must be exactly ${expectedLength} letters`);
@@ -441,7 +449,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
   // The keyboard's action key has no 4/5 button to press. Four letters send a
   // probe; five letters send a solve attempt.
   const submitGuessFromKeyboard = () => {
-    const word = guessText.trim();
+    const word = (guessInputRef.current?.value || guessTextRef.current).trim();
     if (word.length === 4) {
       void submitCurrentGuess("fourLetter");
       return;
@@ -936,23 +944,19 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
                     </span>
                   </div>
                 </div>
-                {/* These buttons submit. Pointerdown runs before the input
-                    blurs: tapping while the keyboard is up otherwise fires
-                    blur first, and the scroll correction moves the button out
-                    from under the finger before the click lands. */}
-                <div className="grid grid-cols-2 rounded-lg bg-zinc-100 p-0.5">
+                {/* These boxes submit the word in the field above. Pointerdown
+                    runs before the input blurs: tapping while the keyboard is
+                    up otherwise fires blur first, and the scroll correction
+                    moves the box out from under the finger before the click
+                    lands. */}
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onPointerDown={(e) => {
                       e.preventDefault();
                       void submitCurrentGuess("fourLetter");
                     }}
-                    className={`inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition active:scale-[0.98] ${
-                      guessText.length === 4
-                        ? "border-zinc-900 bg-white text-zinc-900 shadow-sm"
-                        : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-white/70"
-                    }`}
-                    aria-pressed={guessText.length === 4}
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-900 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98]"
                   >
                     4-letter guess
                   </button>
@@ -962,12 +966,7 @@ export function GameBoard({ gameId, onExitToMenu, forceHowToPlay, onHowToPlayCon
                       e.preventDefault();
                       void submitCurrentGuess("fullWord");
                     }}
-                    className={`inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition active:scale-[0.98] ${
-                      guessText.length === 5
-                        ? "border-zinc-900 bg-white text-zinc-900 shadow-sm"
-                        : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-white/70"
-                    }`}
-                    aria-pressed={guessText.length === 5}
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-900 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98]"
                   >
                     5-letter guess
                   </button>
