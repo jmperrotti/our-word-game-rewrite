@@ -144,7 +144,7 @@ export function HowToPlay({
             <p className="pt-1">
               Continue to guess 4-letter words and mark letters until you&rsquo;re ready to guess your opponent&rsquo;s 5-letter word.
             </p>
-            <p>Tap the 5-letter guess box to send it.</p>
+            <p>Tap the 5-letter guess box to submit it.</p>
             <GuessComposerExample word="QUARK" selected="five" />
           </div>
 
