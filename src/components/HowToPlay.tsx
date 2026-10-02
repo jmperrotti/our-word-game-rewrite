@@ -29,6 +29,37 @@ function Tile({ tone = "neutral", children }: { tone?: "neutral" | "green" | "re
   );
 }
 
+function ExampleAlphabetBoard() {
+  const marked: Record<string, "green" | "red"> = { U: "green", D: "red" };
+  const tones = {
+    blank: "border-zinc-300 bg-white text-zinc-700",
+    green: "border-emerald-600 bg-emerald-500 text-white",
+    red: "border-rose-600 bg-rose-500 text-white",
+  } as const;
+
+  return (
+    <div
+      className="overflow-hidden rounded-xl border border-zinc-200 bg-white"
+      role="img"
+      aria-label="Alphabet board. U is green. D is red. The other letters are blank."
+    >
+      <div className="grid grid-cols-7 gap-1 p-2">
+        {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => {
+          const tone = marked[letter] ?? "blank";
+          return (
+            <span
+              key={letter}
+              className={`flex min-h-9 items-center justify-center rounded border-2 font-mono text-[11px] font-bold ${tones[tone]}`}
+            >
+              {letter}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Word({ word, tone = "neutral" }: { word: string; tone?: "neutral" | "green" | "red" }) {
   return (
     <span className="inline-flex gap-1" role="img" aria-label={word}>
@@ -134,13 +165,16 @@ export function HowToPlay({
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold text-zinc-900">Keep track of letters on the alphabet board.</p>
-            <p>Tap a letter once for green if it is in their word.</p>
-            <p>Tap it twice for red if it is not.</p>
-            <span className="inline-flex gap-1">
-              <Tile tone="green">U</Tile>
-              <Tile tone="red">D</Tile>
-            </span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="font-bold text-zinc-900">Keep track of letters on the alphabet board.</p>
+                <p>Tap a letter once for green if it is in their word.</p>
+                <p>Tap it twice for red if it is not.</p>
+              </div>
+              <div className="sm:w-64 sm:shrink-0">
+                <ExampleAlphabetBoard />
+              </div>
+            </div>
             <p className="pt-1">
               Continue to guess 4-letter words and mark letters until you&rsquo;re ready to guess your opponent&rsquo;s 5-letter word.
             </p>
