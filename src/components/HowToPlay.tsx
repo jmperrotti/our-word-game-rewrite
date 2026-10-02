@@ -129,7 +129,7 @@ export function HowToPlay({
             <GuessComposerExample word="DUNK" selected="four" result="2" />
             <p>
               2 letters in your guess <span className="font-bold text-zinc-900">DUNK</span> are in the opponent&rsquo;s
-              word <span className="font-bold text-zinc-900">QUARK</span>.
+              word <span className="font-bold text-zinc-900">QUACK</span>.
             </p>
           </div>
 
@@ -145,7 +145,7 @@ export function HowToPlay({
               Continue to guess 4-letter words and mark letters until you&rsquo;re ready to guess your opponent&rsquo;s 5-letter word.
             </p>
             <p>Tap the 5-letter guess box to submit it.</p>
-            <GuessComposerExample word="QUARK" selected="five" />
+            <GuessComposerExample word="QUACK" selected="five" />
           </div>
 
           <div className="space-y-2 text-center">
