@@ -30,7 +30,25 @@ function Tile({ tone = "neutral", children }: { tone?: "neutral" | "green" | "re
 }
 
 function ExampleAlphabetBoard() {
-  const marked: Record<string, "green" | "red"> = { U: "green", D: "red" };
+  const marked: Record<string, "green" | "red"> = {
+    A: "green",
+    C: "green",
+    K: "green",
+    Q: "green",
+    U: "green",
+    B: "red",
+    D: "red",
+    E: "red",
+    F: "red",
+    G: "red",
+    H: "red",
+    I: "red",
+    J: "red",
+    L: "red",
+    M: "red",
+    N: "red",
+    P: "red",
+  };
   const tones = {
     blank: "border-zinc-300 bg-white text-zinc-700",
     green: "border-emerald-600 bg-emerald-500 text-white",
@@ -41,7 +59,7 @@ function ExampleAlphabetBoard() {
     <div
       className="overflow-hidden rounded-xl border border-zinc-200 bg-white"
       role="img"
-      aria-label="Alphabet board. U is green. D is red. The other letters are blank."
+      aria-label="Alphabet board. A, C, K, Q, and U are green. B, D, E, F, G, H, I, J, L, M, N, and P are red."
     >
       <div className="grid grid-cols-7 gap-1 p-2">
         {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => {
